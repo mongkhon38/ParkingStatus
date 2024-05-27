@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parking Status</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: #FFFFFF; /* base-100 */
+            color: #000000; /* base-content */
+        }
+        .dark-mode body {
+            background-color: #111827; /* dark mode base */
+            color: #F3F4F6; /* dark mode content */
+        }
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .modal-overlay.active {
+            display: block;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #FFFFFF; /* base-100 */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            color: #000000; /* base-content */
+        }
+        .modal.active {
+            display: block;
+        }
+        #sidebar {
+            transform: translateX(-100%);
+            transition: transform 0.3s ease;
+        }
+        #sidebar.open {
+            transform: translateX(0);
+            background-color: rgba(0, 0, 0, 0.5); /* transparent */
+        }
+        .value.empty {
+            color: #04AA6D; /* success */
+        }
+        .value.under-maintenance {
+            color: #fbbf24; /* warning */
+        }
+        .value.not-in-use {
+            color: #95a5a6; /* neutral-focus */
+        }
+        .value.owned {
+            color: #3498db; /* info */
+        }
+        .value.full {
+            color: #D9534F; /* error */
+        }
+        .value.unknown {
+            color: #8e44ad; /* สีม่วง */
+        }
+        .header {
+            background-color: #002D74; /* primary */
+            color: #FFFFFF; /* primary-content */
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .status {
+            background-color: #F3F4F6; /* neutral */
+            color: #000000; /* neutral-content */
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .btn-primary {
+            background-color: #002D74; /* primary */
+            color: #FFFFFF; /* primary-content */
+        }
+        .btn-secondary {
+            background-color: #AB2328; /* secondary */
+            color: #FFFFFF; /* secondary-content */
+        }
+        .modal-box {
+            background-color: #FFFFFF; /* base-100 */
+            color: #000000; /* base-content */
+        }
+        .modal-action .btn {
+            margin-top: 10px;
+        }
+        .toggle {
+            appearance: none;
+            width: 50px;
+            height: 25px;
+            background: #111827;
+            border-radius: 15px;
+            position: relative;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle:checked {
+            background: #F3F4F6;
+        }
+        .toggle::before {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 21px;
+            height: 21px;
+            background: #FFFFFF;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle:checked::before {
+            transform: translateX(25px);
+            background: #111827;
+        }
+    </style>
+    <script>
+        let parkingStatus = {};
+
+        function fetchStatus() {
+            fetch('https://your-api-endpoint.com/api/get-status')
+                .then(response => response.json())
+                .then(data => {
+                    parkingStatus = data;
+                    updateStatusUI(data);
+                })
+                .catch(error => console.error('Error:', error));
+        }
+
+        function updateStatusUI(data) {
+            ['A', 'B', 'C', 'D', 'E'].forEach(zone => {
+                ['01', '02'].forEach(slot => {
+                    const statusElement = document.getElementById(`status${zone}${slot}`);
+                    const status = data[`${zone}${slot}`] || 'Unknown';
+                    statusElement.innerText = status;
+                    statusElement.className = 'value ' + status.toLowerCase().replace(' ', '-');
+                });
+            });
+        }
+
+        function findEmpty() {
+            let emptySlots = [];
+            for (const [key, value] of Object.entries(parkingStatus)) {
+                if (value === 'Empty') {
+                    emptySlots.push(key);
+                }
+            }
+
+            let message = emptySlots.length > 0 ? `Empty slots: ${emptySlots.join(', ')}` : 'No empty slots available';
+            document.getElementById('find-empty-message').innerText = message;
+
+            showModal('find-empty-modal');
+        }
+
+        function rentSpot() {
+            let emptySlots = [];
+            for (const [key, value] of Object.entries(parkingStatus)) {
+                if (value === 'Empty') {
+                    emptySlots.push(key);
+                }
+            }
+
+            if (emptySlots.length > 0) {
+                let options = emptySlots.map(slot => `<option value="${slot}">${slot}</option>`).join('');
+                document.getElementById('rent-spot-select').innerHTML = options;
+                showModal('rent-spot-modal');
+            } else {
+                alert('No empty slots available');
+            }
+        }
+
+        function proceedToPayment() {
+            selectedSlot = document.getElementById('rent-spot-select').value;
+            showModal('payment-modal');
+            hideModal('rent-spot-modal');
+        }
+
+        function showCreditCardForm() {
+            showModal('credit-card-modal');
+            hideModal('payment-modal');
+        }
+
+        function showQrCode() {
+            showModal('qr-code-modal');
+            hideModal('payment-modal');
+        }
+
+        function confirmPayment() {
+            hideModal('credit-card-modal');
+            hideModal('qr-code-modal');
+            showModal('thank-you-modal');
+
+            // Dummy payment process
+            setTimeout(() => {
+                parkingStatus[selectedSlot] = 'Owned';
+                updateStatusUI(parkingStatus);
+
+                // Revert status after 10 seconds
+                setTimeout(() => {
+                    parkingStatus[selectedSlot] = 'Empty';
+                    updateStatusUI(parkingStatus);
+                }, 10000);
+                closeModal();
+            }, 3000); // Simulate payment delay
+        }
+
+        function showModal(modalId) {
+            document.getElementById(modalId).classList.add('active');
+            document.getElementById('modal-overlay').classList.add('active');
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function closeModal() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.classList.remove('active');
+            });
+            document.getElementById('modal-overlay').classList.remove('active');
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('open');
+            document.body.style.gridTemplateColumns = sidebar.classList.contains('open') ? '250px 1fr' : '0 1fr';
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark-mode');
+        }
+
+        setInterval(fetchStatus, 1000);
+        document.addEventListener('DOMContentLoaded', (event) => {
+            fetchStatus();
+        });
+    </script>
+</head>
+<body>
+    <div id="sidebar" class="sidebar fixed top-0 left-0 w-64 h-full shadow-lg">
+        <button class="mt-20 mb-20 mx-auto block text-white py-1 px-1 rounded" onclick="toggleDarkMode()">
+            <label class="flex cursor-pointer gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="5"/>
+                    <path d="M12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4"/>
+                </svg>
+                <input type="checkbox" class="toggle theme-controller"/>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </label>
+        </button>
+    </div>
+    <button id="sidebarToggle" class="fixed top-4 left-4 btn-primary px-4 py-2 rounded shadow" onclick="toggleSidebar()">☰</button>
+    <div class="container mx-auto p-4">
+        <div class="header flex justify-between items-center">
+            <h1 class="text-4xl font-bold">Parking Status</h1>
+            <div>
+                <button id="find-empty" class="btn-primary px-4 py-2 rounded shadow mr-2" onclick="findEmpty()">Find Empty</button>
+                <button id="rent-spot" class="btn-primary px-4 py-2 rounded shadow" onclick="rentSpot()">Rent a Spot</button>
+            </div>
+        </div>
+        <div class="status-container grid grid-cols-5 gap-4 mt-8">
+            ${['A', 'B', 'C', 'D', 'E'].map(zone => `
+                <div class="zone-container text-center p-4">
+                    <h2 class="text-2xl font-bold mb-4">ParkingZone-${zone}</h2>
+                    ${['01', '02'].map(slot => `
+                        <div class="status mb-4">
+                            <div class="title text-xl font-bold">${zone}${slot}</div>
+                            <div class="value" id="status${zone}${slot}">Unknown</div>
+                        </div>
+                    `).join('')}
+                </div>
+            `).join('')}
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div id="modal-overlay" class="modal-overlay" onclick="closeModal()"></div>
+
+    <!-- Find Empty Modal -->
+    <div id="find-empty-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Empty Slots</h3>
+            <p id="find-empty-message" class="py-4"></p>
+            <div class="modal-action">
+                <button class="btn-primary px-4 py-2 rounded" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rent a Spot Modal -->
+    <div id="rent-spot-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Rent a Spot</h3>
+            <label for="rent-spot-select" class="block mb-2">Select a spot:</label>
+            <select id="rent-spot-select" class="border p-2 rounded w-full mb-4"></select>
+            <button class="btn-primary px-4 py-2 rounded" onclick="proceedToPayment()">Proceed to Payment</button>
+            <button class="btn-secondary px-4 py-2 rounded" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Payment Options</h3>
+            <p>Select your payment method:</p>
+            <button class="btn-primary px-4 py-2 rounded mt-2" onclick="showCreditCardForm()">Credit Card</button>
+            <button class="btn-secondary px-4 py-2 rounded mt-2" onclick="showQrCode()">Qr Code</button>
+            <button class="btn-secondary px-4 py-2 rounded mt-2" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Credit Card Modal -->
+    <div id="credit-card-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Credit Card Payment</h3>
+            <label for="card-number" class="block mb-2">Card Number:</label>
+            <input type="text" id="card-number" class="border p-2 rounded w-full mb-4" placeholder="Enter card number">
+            <label for="cvc" class="block mb-2">CVC:</label>
+            <input type="text" id="cvc" class="border p-2 rounded w-full mb-4" placeholder="Enter CVC">
+            <button class="btn-primary px-4 py-2 rounded" onclick="confirmPayment()">Confirm Payment</button>
+            <button class="btn-secondary px-4 py-2 rounded" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div id="qr-code-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">QR Code Payment</h3>
+            <div class="flex justify-center mb-4">
+                <img src="https://via.placeholder.com/150" alt="QR Code">
+            </div>
+            <button class="btn-primary px-4 py-2 rounded" onclick="confirmPayment()">Confirm Payment</button>
+            <button class="btn-secondary px-4 py-2 rounded" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+
+    <!-- Thank You Modal -->
+    <div id="thank-you-modal" class="modal">
+        <div class="modal-box">
+            <h3 class="font-bold text-lg">Thank You!</h3>
+            <p>Thank you for renting a parking spot.</p>
+            <button class="btn-primary px-4 py-2 rounded" onclick="closeModal()">Close</button>
+        </div>
+    </div>
+</body>
+</html>
