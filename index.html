@@ -1,8 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Parking Status</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
@@ -129,9 +127,10 @@
     </style>
     <script>
         let parkingStatus = {};
+        let selectedSlot = '';
 
         function fetchStatus() {
-            fetch('https://your-api-endpoint.com/api/get-status')
+            fetch('http://192.168.176.91:8001/api/get-status')
                 .then(response => response.json())
                 .then(data => {
                     parkingStatus = data;
@@ -141,12 +140,16 @@
         }
 
         function updateStatusUI(data) {
-            ['A', 'B', 'C', 'D', 'E'].forEach(zone => {
-                ['01', '02'].forEach(slot => {
+            const zones = ['A', 'B', 'C', 'D', 'E'];
+            const slots = ['01', '02'];
+            
+            zones.forEach(zone => {
+                slots.forEach(slot => {
                     const statusElement = document.getElementById(`status${zone}${slot}`);
-                    const status = data[`${zone}${slot}`] || 'Unknown';
-                    statusElement.innerText = status;
-                    statusElement.className = 'value ' + status.toLowerCase().replace(' ', '-');
+                    if (statusElement) {
+                        statusElement.innerText = data[`${zone}${slot}`] || 'Unknown';
+                        statusElement.className = 'value ' + (data[`${zone}${slot}`] ? data[`${zone}${slot}`].toLowerCase().replace(' ', '-') : 'unknown');
+                    }
                 });
             });
         }
@@ -275,17 +278,61 @@
             </div>
         </div>
         <div class="status-container grid grid-cols-5 gap-4 mt-8">
-            ${['A', 'B', 'C', 'D', 'E'].map(zone => `
-                <div class="zone-container text-center p-4">
-                    <h2 class="text-2xl font-bold mb-4">ParkingZone-${zone}</h2>
-                    ${['01', '02'].map(slot => `
-                        <div class="status mb-4">
-                            <div class="title text-xl font-bold">${zone}${slot}</div>
-                            <div class="value" id="status${zone}${slot}">Unknown</div>
-                        </div>
-                    `).join('')}
+            <div class="zone-container text-center p-4">
+                <h2 class="text-2xl font-bold mb-4">ParkingZone-A</h2>
+                <div class="status mb-4">
+                    <div class="title text-xl font-bold">A01</div>
+                    <div class="value" id="statusA01">Unknown</div>
                 </div>
-            `).join('')}
+                <div class="status">
+                    <div class="title text-xl font-bold">A02</div>
+                    <div class="value" id="statusA02">Under maintenance</div>
+                </div>
+            </div>
+            <div class="zone-container text-center p-4">
+                <h2 class="text-2xl font-bold mb-4">ParkingZone-B</h2>
+                <div class="status mb-4">
+                    <div class="title text-xl font-bold">B01</div>
+                    <div class="value" id="statusB01">Unknown</div>
+                </div>
+                <div class="status">
+                    <div class="title text-xl font-bold">B02</div>
+                    <div class="value" id="statusB02">Under maintenance</div>
+                </div>
+            </div>
+            <div class="zone-container text-center p-4">
+                <h2 class="text-2xl font-bold mb-4">ParkingZone-C</h2>
+                <div class="status mb-4">
+                    <div class="title text-xl font-bold">C01</div>
+                    <div class="value" id="statusC01">Not in use</div>
+                </div>
+                <div class="status">
+                    <div class="title text-xl font-bold">C02</div>
+                    <div class="value" id="statusC02">Under maintenance</div>
+                </div>
+            </div>
+            <div class="zone-container text-center p-4">
+                <h2 class="text-2xl font-bold mb-4">ParkingZone-D</h2>
+                <div class="status mb-4">
+                    <div class="title text-xl font-bold">D01</div>
+                    <div class="value" id="statusD01">Not in use</div>
+                </div>
+                <div class="status">
+                    <div class="title text-xl font-bold">D02</div>
+                    <div class="value" id="statusD02">Under maintenance</div>
+                </div>
+            </div>
+            <div class="zone-container text-center p-4">
+                <h2 class="text-2xl font-bold mb-4">ParkingZone-E</h2>
+                <div class="status mb-4">
+                    <div class="title text-xl font-bold">E01</div>
+                    <div class="value" id="statusE01">Not in use</div>
+                </div>
+                <div class="status">
+                    <div class="title text-xl font-bold">E02</div>
+                    <div class="value" id="statusE02">Under maintenance</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -343,7 +390,7 @@
         <div class="modal-box">
             <h3 class="font-bold text-lg">QR Code Payment</h3>
             <div class="flex justify-center mb-4">
-                <img src="https://via.placeholder.com/150" alt="QR Code">
+                <img src="image.png" alt="QR Code">
             </div>
             <button class="btn-primary px-4 py-2 rounded" onclick="confirmPayment()">Confirm Payment</button>
             <button class="btn-secondary px-4 py-2 rounded" onclick="closeModal()">Close</button>
